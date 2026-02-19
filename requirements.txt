@@ -11,3 +11,4 @@ aiofiles==25.1.0
 resend==2.22.0
 email-validator==2.3.0
 starlette==0.37.2
+cloudinary==1.44.1
