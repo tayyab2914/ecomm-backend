@@ -18,6 +18,8 @@ import resend
 import aiofiles
 import secrets
 import re
+import cloudinary
+import cloudinary.uploader
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -36,9 +38,13 @@ JWT_EXPIRATION_HOURS = 24
 resend.api_key = os.environ.get('RESEND_API_KEY', '')
 SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'onboarding@resend.dev')
 
-# Create uploads directory
-UPLOAD_DIR = ROOT_DIR / 'uploads' / 'products'
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+# Cloudinary Config
+cloudinary.config(
+    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.environ.get('CLOUDINARY_API_KEY'),
+    api_secret=os.environ.get('CLOUDINARY_API_SECRET'),
+    secure=True
+)
 
 app = FastAPI(title="E-Commerce MVP API")
 api_router = APIRouter(prefix="/api")
@@ -624,17 +630,20 @@ async def upload_image(file: UploadFile = File(...), admin: dict = Depends(get_a
         raise HTTPException(status_code=400, detail="File must be an image")
     
     content = await file.read()
-    if len(content) > 2 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="Image must be less than 2MB")
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image must be less than 10MB")
     
-    ext = file.filename.split(".")[-1] if file.filename else "jpg"
-    filename = f"{uuid.uuid4()}.{ext}"
-    filepath = UPLOAD_DIR / filename
-    
-    async with aiofiles.open(filepath, 'wb') as f:
-        await f.write(content)
-    
-    return {"url": f"/api/uploads/products/{filename}"}
+    try:
+        result = await asyncio.to_thread(
+            cloudinary.uploader.upload,
+            content,
+            folder="products",
+            resource_type="image"
+        )
+        return {"url": result["secure_url"]}
+    except Exception as e:
+        logger.error(f"Cloudinary upload failed: {e}")
+        raise HTTPException(status_code=500, detail="Image upload failed")
 
 # ============ CART ROUTES ============
 
