@@ -839,7 +839,32 @@ async def create_order(
         <p>We'll notify you when your order ships. Payment is due on delivery.</p>
         """
     )
-    
+
+    # Send notification email to all admins
+    admins = await db.users.find(
+        {"role": {"$in": ["admin", "super_admin"]}, "is_active": True},
+        {"_id": 0, "email": 1}
+    ).to_list(100)
+    admin_notification_html = f"""
+        <h1>New Order Placed</h1>
+        <p>A new order has been placed and requires your attention.</p>
+        <p><strong>Order Number:</strong> {order_doc['order_number']}</p>
+        <p><strong>Customer:</strong> {checkout.customer_name} ({checkout.customer_email})</p>
+        <p><strong>Phone:</strong> {checkout.customer_phone}</p>
+        <h3>Items Ordered:</h3>
+        <table border="1" cellpadding="5"><tr><th>Product</th><th>Qty</th><th>Total</th></tr>{items_html}</table>
+        <p><strong>Order Total: ${total_amount:.2f}</strong></p>
+        <h3>Shipping Address:</h3>
+        <p>{checkout.shipping_address.street}<br>{checkout.shipping_address.city}, {checkout.shipping_address.state} {checkout.shipping_address.zip_code}<br>{checkout.shipping_address.country}</p>
+        <p>Please log in to the admin panel to process this order.</p>
+    """
+    for admin in admins:
+        await send_email(
+            admin["email"],
+            f"New Order Received - {order_doc['order_number']}",
+            admin_notification_html
+        )
+
     return OrderResponse(**order_doc)
 
 @api_router.get("/orders", response_model=List[OrderResponse])
