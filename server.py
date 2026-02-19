@@ -1,6 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, Query, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -1282,9 +1281,6 @@ async def seed_data():
     
     return {"message": "Seed data created successfully", "admin_email": "admin@store.com", "admin_password": "admin123"}
 
-# ============ STATIC FILES ============
-
-app.mount("/api/uploads", StaticFiles(directory=str(ROOT_DIR / 'uploads')), name="uploads")
 
 # Include the router
 app.include_router(api_router)
